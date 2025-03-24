@@ -1,12 +1,12 @@
 import streamlit as st
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, CacheBackedEmbeddings
+from langchain.embeddings import CacheBackedEmbeddings, OllamaEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.storage import LocalFileStore
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
-from langchain.chat_models import ChatOpenAI
+from langchain.chat_models import ChatOllama
 from langchain.callbacks.base import BaseCallbackHandler
 
 st.set_page_config(
@@ -26,7 +26,8 @@ class ChatCallbackHandler(BaseCallbackHandler):
         self.message += token
         self.message_box.markdown(self.message)
 
-llm = ChatOpenAI(
+llm = ChatOllama(
+    model="mistral:latest",
     temperature=0.1,
     streaming=True,
     callbacks=[ChatCallbackHandler()],
@@ -50,7 +51,7 @@ def embed_file(file):
 
     docs = loader.load_and_split(text_splitter=splitter)
 
-    embeddings = OpenAIEmbeddings()
+    embeddings = OllamaEmbeddings(model="mistral:latest")
 
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         embeddings, cache_dir
@@ -75,21 +76,18 @@ def paint_history():
 def format_docs(docs):
     return "\n\n".join(document.page_content for document in docs)
 
-prompt = ChatPromptTemplate.from_messages([
-    (
-        "system", 
-        """
-           Answer the question using ONLY the following context.
-           If you don't know the answer just say you don't know.
-           DON'T make anything up.
+prompt = ChatPromptTemplate.from_template(
+    """
+       Answer the question using ONLY the following context and not your training data.
+       If you don't know the answer just say you don't know.
+       DON'T make anything up.
 
-           Context: {context}
-        """
-    ),
-    ("user", "{question}"),
-])
+       Context: {context}
+       Question: {question}
+    """
+)
 
-st.title("DocumentGPT")
+st.title("PrivateGPT")
 
 st.markdown("""
     Welcome!
